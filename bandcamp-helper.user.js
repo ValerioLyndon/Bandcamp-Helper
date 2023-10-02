@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.0.0
+// @version      1.1.0
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -15,14 +15,19 @@ class MassDownload {
 		this.paragraph = document.createElement('p');
 		this.wrapper.append(this.paragraph);
 		document.querySelector('.download_list').prepend(this.wrapper);
+		this.dropdowns = document.querySelectorAll('select#format-type');
+		for( let dropdown of this.dropdowns ){
+			dropdown.addEventListener('change', ()=>{
+				this.calculateBytes();
+			});
+		}
 		this.calculateBytes();
 	}
 
 	calculateBytes( ){
 		let totalBytes = 0;
-		let dropdowns = document.querySelectorAll('select#format-type');
-		let totalItems = dropdowns.length;
-		for( let dropdown of dropdowns ){
+		let totalItems = this.dropdowns.length;
+		for( let dropdown of this.dropdowns ){
 			dropdown.addEventListener('change', this.calculateBytes);
 			let selected = false;
 			for( let opt of dropdown.getElementsByTagName('option') ){
@@ -69,7 +74,8 @@ class MassDownload {
 				bytes /= 1024;
 				format = 'TiB';
 			}
-			bytes = Math.round(bytes);
+			// round to two decimal places
+			bytes = Math.round(bytes*100) / 100;
 			return `${bytes}${format}`;
 		}
 
