@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.2.0
+// @version      1.2.1
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -110,27 +110,52 @@ class Discography {
 			}
 		`);
 
-		this.lazyLoadItems(0);
+		for( let item of this.items ){
+			let tag = document.createElement('span');
+			tag.className = `vl-price-tag`;
+			tag.textContent = '...';
+			item.getElementsByClassName('art')[0].append(tag);
+			item.addEventListener('mouseenter', ()=>{ this.assignPrice(item) });
+		}
+
+		const grid = document.getElementById('music-grid');
+		const loadAllBtn = document.createElement('a');
+		grid.style.marginTop = '15px';
+		loadAllBtn.href = "#";
+		loadAllBtn.textContent = 'Load all prices.';
+		loadAllBtn.addEventListener('click', ()=>{ this.lazyLoadItems(0); });
+		grid.insertAdjacentElement('beforebegin', loadAllBtn);
 	}
 
 	async lazyLoadItems( index ){
-		console.log('lazyLoad');
 		const item = this.items[index];
+		let wait = await this.assignPrice(item);
+
+		if( wait ){
+			const delay = 50*(1+(index*0.15));
+			setTimeout(()=>{
+				this.lazyLoadItems(index+1);
+			}, delay);
+		}
+		else {
+			this.lazyLoadItems(index+1);
+		}
+	}
+
+	async assignPrice( item ){
+		if( item.dataset.priced ){
+			return false;
+		}
 		const url = item.getElementsByTagName('a')[0].href;
 		const price = await this.getPrice(url);
-		let tag = document.createElement('span');
-		tag.className = `vl-price-tag`;
+		let tag = item.querySelector('.vl-price-tag');
 		tag.textContent = price;
-		item.getElementsByClassName('art')[0].append(tag);
 
-		const delay = 50*(1+(index*0.15));
-		setTimeout(()=>{
-			this.lazyLoadItems(index+1);
-		}, delay);
+		item.dataset.priced = true;
+		return true;
 	}
 
 	async getPrice( url ){
-		console.log('price');
 		let price = 'unknown price';
 		try {
 			const page = await fetch(url);
@@ -138,18 +163,24 @@ class Discography {
 			const parser = new DOMParser();
 			const dom = parser.parseFromString(text, 'text/html');
 
-			const span = dom.querySelector('.buy-link ~ span');
-			if( span === null ){
+			const buy = dom.querySelector('.buyItem:not(.buyFullDiscography) h4 .buy-link');
+			const buyDetail = buy ? buy.nextElementSibling : null;
+			if( buy === null ){
 				price = 'not for sale';
 			}
-			if( span.className.includes('buyItemExtra') ){
+			else if( buy.textContent.includes('Free') ){
 				price = 'free';
 			}
-			else if( span.childElementCount > 0 ){
-				const quantity = span.querySelector('.base-text-color').textContent;
-				const currency = span.querySelector('.secondaryText').textContent;
-				console.log(quantity,currency);
+			else if( buyDetail === null && dom.querySelector('.buyItem:not(.buyFullDiscography) .you-own-this') ){
+				price = 'owned';
+			}
+			else if( buyDetail && buyDetail.childElementCount > 0 ){
+				const quantity = buyDetail.querySelector('.base-text-color').textContent;
+				const currency = buyDetail.querySelector('.secondaryText').textContent;
 				price = `${quantity} ${currency}`;
+			}
+			else if( buyDetail && buyDetail.className.includes('buyItemExtra') ){
+				price = 'name your price';
 			}
 		}
 		catch {
