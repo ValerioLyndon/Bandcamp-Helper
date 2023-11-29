@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.2.1
+// @version      1.2.2
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -197,6 +197,6 @@ if( url.pathname.startsWith('/download') ){
 }
 
 // Discographies
-if( (url.hostname.match(/\./g) || []).length === 2 && url.pathname === '/' ){
+if( (url.hostname.match(/\./g) || []).length === 2 && /^\/$|^\/music\/?$/.test(url.pathname) ){
 	new Discography();
 }
