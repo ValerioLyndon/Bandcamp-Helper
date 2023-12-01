@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.2.3-pre1
+// @version      1.2.3
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -111,11 +111,14 @@ class Discography {
 		`);
 
 		for( let item of this.items ){
+			const cached = window.sessionStorage.getItem(`price-${item.dataset.itemId}`);
 			let tag = document.createElement('span');
 			tag.className = `vl-price-tag`;
-			tag.textContent = '...';
+			tag.textContent = cached !== null ? cached : '...';
 			item.getElementsByClassName('art')[0].append(tag);
-			item.addEventListener('mouseenter', ()=>{ this.assignPrice(item) });
+			if( cached === null ){
+				item.addEventListener('mouseenter', ()=>{ this.assignPrice(item) });
+			}
 		}
 
 		const grid = document.getElementById('music-grid');
@@ -150,7 +153,7 @@ class Discography {
 		const price = await this.getPrice(url);
 		let tag = item.querySelector('.vl-price-tag');
 		tag.textContent = price;
-
+		window.sessionStorage.setItem(`price-${item.dataset.itemId}`, price);
 		item.dataset.priced = true;
 		return true;
 	}
