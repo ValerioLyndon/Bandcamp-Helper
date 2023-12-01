@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.2.2
+// @version      1.2.3-pre1
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -163,24 +163,31 @@ class Discography {
 			const parser = new DOMParser();
 			const dom = parser.parseFromString(text, 'text/html');
 
-			const buy = dom.querySelector('.buyItem:not(.buyFullDiscography) h4 .buy-link');
-			const buyDetail = buy ? buy.nextElementSibling : null;
-			if( buy === null ){
+			const buyOptions = dom.querySelectorAll('.buyItem:not(.buyFullDiscography):not(.subscribeLink)');
+			if( buyOptions.length === 0 ){
 				price = 'not for sale';
 			}
-			else if( buy.textContent.includes('Free') ){
-				price = 'free';
-			}
-			else if( buyDetail === null && dom.querySelector('.buyItem:not(.buyFullDiscography) .you-own-this') ){
-				price = 'owned';
-			}
-			else if( buyDetail && buyDetail.childElementCount > 0 ){
-				const quantity = buyDetail.querySelector('.base-text-color').textContent;
-				const currency = buyDetail.querySelector('.secondaryText').textContent;
-				price = `${quantity} ${currency}`;
-			}
-			else if( buyDetail && buyDetail.className.includes('buyItemExtra') ){
-				price = 'name your price';
+			for( let option of buyOptions ){
+				const link = option.querySelector('h4 .buy-link');
+				const detail = link ? link.nextElementSibling : null;
+
+				if( option.textContent.includes('Free') ){
+					price = 'free';
+					break;
+				}
+				else if( detail === null && dom.querySelector('.buyItem:not(.buyFullDiscography):not(.subscribeLink) .you-own-this') ){
+					price = 'owned';
+					break;
+				}
+				else if( detail && detail.childElementCount > 0 ){
+					const quantity = detail.querySelector('.base-text-color').textContent;
+					const currency = detail.querySelector('.secondaryText').textContent;
+					price = `${quantity} ${currency}`;
+				}
+				else if( detail && detail.className.includes('buyItemExtra') ){
+					price = 'name your price';
+					break;
+				}
 			}
 		}
 		catch {
