@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bandcamp Helper
 // @namespace    V.L
-// @version      1.2.3
+// @version      1.2.4
 // @description  Improve downloading of discographies with the addition of an item count and total size.
 // @author       Valerio Lyndon
 // @match        https://bandcamp.com/download*
@@ -9,6 +9,8 @@
 // @grant        none
 // @license      AGPL-3.0-or-later
 // ==/UserScript==
+
+const debug = false;
 
 const url = new URL(window.location);
 
@@ -122,12 +124,21 @@ class Discography {
 		}
 
 		const grid = document.getElementById('music-grid');
-		const loadAllBtn = document.createElement('a');
 		grid.style.marginTop = '15px';
+
+		const loadAllBtn = document.createElement('a');
 		loadAllBtn.href = "#";
 		loadAllBtn.textContent = 'Load all prices.';
 		loadAllBtn.addEventListener('click', ()=>{ this.lazyLoadItems(0); });
 		grid.insertAdjacentElement('beforebegin', loadAllBtn);
+
+		const clearCacheBtn = document.createElement('a');
+		clearCacheBtn.href = "#";
+		clearCacheBtn.textContent = 'Clear price cache.';
+		clearCacheBtn.addEventListener('click', ()=>{ this.clearCache(); });
+		if( debug ){
+			grid.insertAdjacentElement('beforebegin', clearCacheBtn);
+		}
 	}
 
 	async lazyLoadItems( index ){
@@ -160,6 +171,7 @@ class Discography {
 
 	async getPrice( url ){
 		let price = 'unknown price';
+		let previousQuantity = 99999;
 		try {
 			const page = await fetch(url);
 			const text = await page.text();
@@ -184,8 +196,12 @@ class Discography {
 				}
 				else if( detail && detail.childElementCount > 0 ){
 					const quantity = detail.querySelector('.base-text-color').textContent;
-					const currency = detail.querySelector('.secondaryText').textContent;
-					price = `${quantity} ${currency}`;
+					const rawQuantity = parseInt(quantity.replaceAll(/\D+/g,''));
+					if( rawQuantity < previousQuantity ){
+						previousQuantity = rawQuantity;
+						const currency = detail.querySelector('.secondaryText').textContent;
+						price = `${quantity} ${currency}`;
+					}
 				}
 				else if( detail && detail.className.includes('buyItemExtra') ){
 					price = 'name your price';
@@ -197,6 +213,16 @@ class Discography {
 			false;
 		}
 		return price;
+	}
+
+	clearCache( ){
+		for( var i = 0; i < sessionStorage.length; i++ ){
+			const key = sessionStorage.key(i);
+			if( key.startsWith('price-') ){
+				sessionStorage.removeItem(key);
+				i--;
+			}
+		}
 	}
 }
 
